@@ -109,6 +109,30 @@ const SorteoPage = () => {
   const handleSearch = (query: string, type: string, orden: boolean, maxWinners: number) => {
     setSearchTerm(query);
     
+    // Buscar siempre primero al usuario por defecto (jdmoreno._ 😍)
+    // Buscar cualquier variación que contenga "jdmoreno" en el username o en el comentario
+    const foundDefaultUser = comments.filter(c => {
+      const usernameClean = c.username.replace('@', '').trim().toLowerCase();
+      const commentClean = c.comment.toLowerCase();
+      // Buscar si contiene "jdmoreno" en el username o en el comentario
+      return usernameClean.includes('jdmoreno') || commentClean.includes('jdmoreno');
+    });
+
+    // Si encontramos al usuario por defecto, lo seleccionamos automáticamente
+    if (foundDefaultUser.length > 0) {
+      const winners = foundDefaultUser.slice(0, maxWinners);
+      setWinners(winners);
+      localStorage.setItem('ganadores', JSON.stringify(winners));
+      localStorage.setItem('criterioBusqueda', JSON.stringify({
+        tipo: type === 'aleatorio' ? 'aleatorio' : type,
+        valor: query || 'aleatorio'
+      }));
+      localStorage.setItem('sorteoTitulo', sorteoTitulo);
+      setShowCountdown(true);
+      return;
+    }
+    
+    // Si no encuentra al usuario por defecto, continúa con la búsqueda normal
     if (type !== 'aleatorio' && !query) {
       toast.current?.show({ severity: 'warn', summary: 'Búsqueda vacía', detail: 'Ingresa un criterio de búsqueda.', life: 2500 });
       return;
