@@ -37,18 +37,19 @@ const HomePage = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onerror = () => {
-      toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo leer el archivo de imagen', life: 3000 });
+    // createObjectURL evita copiar el archivo completo a memoria como base64
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo procesar la imagen', life: 3000 });
     };
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onerror = () => {
-        toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo procesar la imagen', life: 3000 });
-      };
-      img.onload = () => {
-        // Redimensionar a máximo 800px para evitar crashes en móvil por imágenes pesadas de cámara
-        const MAX = 800;
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl); // liberar memoria antes del canvas
+      try {
+        const MAX = 600;
         let { width, height } = img;
         if (width > MAX || height > MAX) {
           const ratio = Math.min(MAX / width, MAX / height);
@@ -58,24 +59,23 @@ const HomePage = () => {
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
-        canvas.getContext('2d')?.drawImage(img, 0, 0, width, height);
-        const compressed = canvas.toDataURL('image/jpeg', 0.75);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('canvas no disponible');
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressed = canvas.toDataURL('image/jpeg', 0.7);
         setImageUrl(compressed);
         try {
           localStorage.setItem('imagenPublicacion', compressed);
         } catch {
-          // QuotaExceededError: la vista previa funciona igual sin persistir
+          // QuotaExceededError: vista previa funciona igual sin persistir
         }
-        toast.current?.show({
-          severity: 'success',
-          summary: '¡Imagen cargada!',
-          detail: 'Imagen subida exitosamente',
-          life: 3000
-        });
-      };
-      img.src = e.target?.result as string;
+        toast.current?.show({ severity: 'success', summary: '¡Imagen cargada!', detail: 'Imagen subida exitosamente', life: 3000 });
+      } catch {
+        toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo comprimir la imagen', life: 3000 });
+      }
     };
-    reader.readAsDataURL(file);
+
+    img.src = objectUrl;
   };
 
   const handleInstagramFile = (fileContent: string | File) => {
@@ -165,7 +165,7 @@ const handleFacebookFile = (fileContent: string | File) => {
         <img
           src="/images/LOGO-FACILÍSIMO-.png"
           alt="Facilísimo Logo"
-          className="mx-auto max-h-36 drop-shadow-2xl mb-4 select-none"
+          className="hidden md:block mx-auto max-h-36 drop-shadow-2xl mb-4 select-none"
           draggable={false}
         />
         <h1 className="text-5xl font-extrabold text-white mb-3 tracking-tight drop-shadow-lg">Sorteos Facilísimo</h1>
