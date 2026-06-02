@@ -35,21 +35,47 @@ const HomePage = () => {
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setImageUrl(result);
-        localStorage.setItem('imagenPublicacion', result);
-        toast.current?.show({ 
-          severity: 'success', 
-          summary: '¡Imagen cargada!', 
-          detail: 'Imagen subida exitosamente', 
-          life: 3000 
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onerror = () => {
+      toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo leer el archivo de imagen', life: 3000 });
+    };
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => {
+        toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo procesar la imagen', life: 3000 });
+      };
+      img.onload = () => {
+        // Redimensionar a máximo 800px para evitar crashes en móvil por imágenes pesadas de cámara
+        const MAX = 800;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          const ratio = Math.min(MAX / width, MAX / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d')?.drawImage(img, 0, 0, width, height);
+        const compressed = canvas.toDataURL('image/jpeg', 0.75);
+        setImageUrl(compressed);
+        try {
+          localStorage.setItem('imagenPublicacion', compressed);
+        } catch {
+          // QuotaExceededError: la vista previa funciona igual sin persistir
+        }
+        toast.current?.show({
+          severity: 'success',
+          summary: '¡Imagen cargada!',
+          detail: 'Imagen subida exitosamente',
+          life: 3000
         });
       };
-      reader.readAsDataURL(file);
-    }
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleInstagramFile = (fileContent: string | File) => {
