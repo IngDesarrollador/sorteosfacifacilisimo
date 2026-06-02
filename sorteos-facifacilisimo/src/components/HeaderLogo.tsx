@@ -2,21 +2,18 @@ import React from 'react';
 import Wave from 'react-wavify';
 
 const HeaderLogo: React.FC = () => (
-  <header className="w-full sticky top-0 z-50 min-h-[100px] px-3 md:px-12 bg-gradient-to-r from-yellow-400 via-yellow-300 to-blue-900 shadow-2xl overflow-hidden flex items-center justify-between">
+  <header className="w-full sticky top-0 z-50 min-h-[100px] px-3 md:px-12 shadow-2xl overflow-hidden flex items-center justify-between" style={{ backgroundColor: '#FDE000' }}>
     {/* Contenido del header */}
-    <div className="relative z-10 flex items-center gap-3 md:gap-4 flex-1 md:flex-none justify-center md:justify-start">
+    <div className="relative z-10 flex items-center flex-1 justify-center md:justify-start">
       <img
-        src="/images/icono-img-removebg-preview.png"
+        src="/images/LOGO-FACILÍSIMO-.png"
         alt="Facilísimo Logo"
-        className="h-12 w-12 md:h-16 md:w-16 select-none drop-shadow-lg"
+        className="h-20 md:h-20 select-none drop-shadow-lg"
         draggable={false}
       />
-      <span className="text-white text-2xl md:text-4xl font-extrabold drop-shadow-md whitespace-nowrap tracking-tight" style={{textShadow: '0 2px 8px rgba(0,0,0,0.10)'}}>
-        Facilísimo
-      </span>
     </div>
     <div className="hidden md:flex items-center justify-end flex-1 relative z-10">
-      <span className="text-white/90 text-base md:text-xl font-semibold tracking-wider pr-4 md:pr-8" style={{textShadow: '0 2px 8px rgba(0,0,0,0.10)'}}>
+      <span className="text-blue-900 text-base md:text-xl font-semibold tracking-wider pr-4 md:pr-8">
         Sorteos Transparentes y Rápidos
       </span>
     </div>

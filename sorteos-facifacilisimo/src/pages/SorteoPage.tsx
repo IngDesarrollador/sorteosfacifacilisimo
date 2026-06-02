@@ -173,7 +173,7 @@ const SorteoPage = () => {
     <div className="max-w-7xl mx-auto mb-6 sm:mb-8">
       <div className="text-center mb-4 sm:mb-6">
         <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">
-          🎯 Sorteo Facilísimo
+          Sorteos Facilísimo
         </h1>
         <p className="text-gray-300 text-base sm:text-lg">
           Encuentra ganadores de forma rápida y transparente
@@ -205,13 +205,13 @@ const SorteoPage = () => {
       {/* FILTROS */}
       <div className="bg-gray-900/90 rounded-2xl border-2 border-yellow-400 shadow-xl p-4 sm:p-6">
         <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6 text-center">
-          🎯 Buscar Ganadores
+          Buscar Ganadores
         </h2>
 
         {/* Título */}
         <div className="mb-4 sm:mb-6">
           <label className="block text-white font-semibold mb-2 text-center">
-            📝 Título del Sorteo
+            Título del Sorteo
           </label>
           <input
             type="text"
@@ -263,7 +263,7 @@ const SorteoPage = () => {
       {/* TABLA */}
       <div className="bg-gray-900/90 rounded-2xl border-2 border-blue-400 shadow-xl p-4 sm:p-6 flex flex-col h-[70vh] sm:h-[80vh]">
           <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 text-center">
-            📝 Comentarios ({formatNumber(totalComentarios)})
+            Comentarios ({formatNumber(totalComentarios)})
           </h2>
 
           {/* CONTENEDOR SCROLL REAL */}
