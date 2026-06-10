@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FileUploader from '../components/FileUploaderProps';
 import { Button } from 'primereact/button';
@@ -15,6 +15,13 @@ const HomePage = () => {
   const [nombresFile, setNombresFile] = useState<string | null>(null);
   const navigate = useNavigate();
   const toast = useRef<Toast>(null);
+  const blobUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+    };
+  }, []);
 
   const fetchImage = async () => {
     if (!url) return;
@@ -37,20 +44,22 @@ const HomePage = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // createObjectURL evita copiar el archivo completo a memoria como base64
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
+    // Revocar blob URL anterior si existe
+    if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
 
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo procesar la imagen', life: 3000 });
-    };
+    const blobUrl = URL.createObjectURL(file);
+    blobUrlRef.current = blobUrl;
 
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl); // liberar memoria antes del canvas
+    // Mostrar preview inmediatamente con el blob URL — sin procesar nada, sin memoria extra
+    setImageUrl(blobUrl);
+    toast.current?.show({ severity: 'success', summary: '¡Imagen cargada!', detail: 'Imagen subida exitosamente', life: 3000 });
+
+    // Comprimir y guardar en localStorage en segundo plano (lo necesita SorteoPage)
+    const tempImg = new Image();
+    tempImg.onload = () => {
       try {
         const MAX = 600;
-        let { width, height } = img;
+        let { width, height } = tempImg;
         if (width > MAX || height > MAX) {
           const ratio = Math.min(MAX / width, MAX / height);
           width = Math.round(width * ratio);
@@ -60,22 +69,15 @@ const HomePage = () => {
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('canvas no disponible');
-        ctx.drawImage(img, 0, 0, width, height);
+        if (!ctx) return;
+        ctx.drawImage(tempImg, 0, 0, width, height);
         const compressed = canvas.toDataURL('image/jpeg', 0.7);
-        setImageUrl(compressed);
         try {
           localStorage.setItem('imagenPublicacion', compressed);
-        } catch {
-          // QuotaExceededError: vista previa funciona igual sin persistir
-        }
-        toast.current?.show({ severity: 'success', summary: '¡Imagen cargada!', detail: 'Imagen subida exitosamente', life: 3000 });
-      } catch {
-        toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo comprimir la imagen', life: 3000 });
-      }
+        } catch { /* quota exceeded */ }
+      } catch { /* canvas no disponible */ }
     };
-
-    img.src = objectUrl;
+    tempImg.src = blobUrl;
   };
 
   const handleInstagramFile = (fileContent: string | File) => {
@@ -168,7 +170,7 @@ const handleFacebookFile = (fileContent: string | File) => {
           className="hidden md:block mx-auto max-h-36 drop-shadow-2xl mb-4 select-none"
           draggable={false}
         />
-        <h1 className="text-5xl font-extrabold text-white mb-3 tracking-tight drop-shadow-lg">Sorteos Facilísimo</h1>
+        <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold text-white mb-3 tracking-tight drop-shadow-lg whitespace-nowrap">Sorteos Facilísimo</h1>
         <p className="text-xl text-blue-100 mb-2 font-medium">Sorteos aleatorios de forma fácil, rápida y transparente. La suerte decide.</p>
         <p className="text-base text-blue-200">Pega el enlace de tu publicación o carga el listado, previsualiza la imagen y selecciona al ganador de manera completamente aleatoria.</p>
       </div>
