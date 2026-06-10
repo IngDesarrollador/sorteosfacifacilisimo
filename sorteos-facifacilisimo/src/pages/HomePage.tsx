@@ -170,9 +170,9 @@ const handleFacebookFile = (fileContent: string | File) => {
           className="hidden md:block mx-auto max-h-36 drop-shadow-2xl mb-4 select-none"
           draggable={false}
         />
-        <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold text-white mb-3 tracking-tight drop-shadow-lg whitespace-nowrap">Sorteos Facilísimo</h1>
-        <p className="text-xl text-blue-100 mb-2 font-medium">Sorteos aleatorios de forma fácil, rápida y transparente. La suerte decide.</p>
-        <p className="text-base text-blue-200">Pega el enlace de tu publicación o carga el listado, previsualiza la imagen y selecciona al ganador de manera completamente aleatoria.</p>
+        <h1 className="font-extrabold text-white mb-3 tracking-tight drop-shadow-lg whitespace-nowrap" style={{ fontSize: '2.5rem' }}>Sorteos Facilísimo</h1>
+        <p className="text-blue-100 mb-2 font-medium" style={{ fontSize: '1rem' }}>Sorteos aleatorios de forma fácil, rápida y transparente. La suerte decide.</p>
+        <p className="text-blue-200" style={{ fontSize: '1rem' }}>Pega el enlace de tu publicación o carga el listado, previsualiza la imagen y selecciona al ganador de manera completamente aleatoria.</p>
       </div>
 
       {/* Card central */}
