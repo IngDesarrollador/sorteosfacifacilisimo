@@ -3,9 +3,10 @@ import type { CommentBlock } from '../utils/commentParser';
 
 interface CommentsTableProps {
   comments: CommentBlock[];
+  renderActions?: (comment: CommentBlock, index: number) => React.ReactNode;
 }
 
-const CommentsTable: React.FC<CommentsTableProps> = ({ comments }) => (
+const CommentsTable: React.FC<CommentsTableProps> = ({ comments, renderActions }) => (
   <div className="rounded-2xl shadow-2xl overflow-hidden animate-fadeIn border border-blue-200 overflow-x-auto">
     <table className="min-w-full divide-y divide-blue-200 bg-white">
       <thead>
@@ -13,6 +14,9 @@ const CommentsTable: React.FC<CommentsTableProps> = ({ comments }) => (
           <th className="px-6 py-3 text-left text-xs font-extrabold text-white uppercase tracking-wider">Usuario</th>
           <th className="px-6 py-3 text-left text-xs font-extrabold text-white uppercase tracking-wider">Fecha</th>
           <th className="px-6 py-3 text-left text-xs font-extrabold text-white uppercase tracking-wider">Comentario</th>
+          {renderActions && (
+            <th className="px-6 py-3 text-center text-xs font-extrabold text-white uppercase tracking-wider">Acciones</th>
+          )}
         </tr>
       </thead>
       <tbody className="divide-y divide-blue-100">
@@ -29,6 +33,11 @@ const CommentsTable: React.FC<CommentsTableProps> = ({ comments }) => (
             <td className="px-6 py-4 align-middle whitespace-pre-line break-words max-w-none">
               {c.comment}
             </td>
+            {renderActions && (
+              <td className="px-6 py-4 text-center align-middle">
+                {renderActions(c, idx)}
+              </td>
+            )}
           </tr>
         ))}
       </tbody>
@@ -41,7 +50,6 @@ const CommentsTable: React.FC<CommentsTableProps> = ({ comments }) => (
         from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: none; }
       }
-      /* Custom scrollbar */
       .rounded-2xl::-webkit-scrollbar {
         width: 10px;
         background: #e0e7ff;

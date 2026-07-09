@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import CommentsTable from '../components/CommentsTable';
 import Filters from '../components/Filters';
 import FiltersFacebook from '../components/FiltersFacebook';
 import WinnerDialog from '../components/WinnerDialog';
 import Countdown from '../components/Countdown';
+import ConfirmModal from '../components/ConfirmModal';
 import { parseComments, parseCommentsFacebook, type CommentBlock } from '../utils/commentParser';
 import { Toast } from 'primereact/toast';
 import { useNavigate } from 'react-router-dom';
+import { FaUsers, FaTrashAlt } from 'react-icons/fa';
 
 function getPermutations(str: string): string[] {
   if (str.length <= 1) return [str];
@@ -37,6 +39,17 @@ const SorteoPage = () => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [platform, setPlatform] = useState<'instagram' | 'facebook' | 'ambos' | 'nombres'>('instagram');
   const [activeFilter, setActiveFilter] = useState<'instagram' | 'facebook' | 'ambos' | 'nombres'>('ambos');
+  const [uniqueMode, setUniqueMode] = useState(false);
+  const [mainParticipants, setMainParticipants] = useState<CommentBlock[]>([]);
+  const [excludedParticipants, setExcludedParticipants] = useState<CommentBlock[]>([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalData, setModalData] = useState({
+    title: '',
+    message: '',
+    confirmLabel: '',
+    confirmClass: '',
+    onConfirm: () => {},
+  });
   const [commentsInstagram, setCommentsInstagram] = useState<CommentBlock[]>([]);
   const [commentsFacebook, setCommentsFacebook] = useState<CommentBlock[]>([]);
   const navigate = useNavigate();
@@ -106,6 +119,30 @@ const SorteoPage = () => {
     }
   }, [activeFilter, platform, commentsInstagram, commentsFacebook]);
 
+  useEffect(() => {
+    if (uniqueMode) {
+      const seen = new Map<string, CommentBlock>();
+      const removed: CommentBlock[] = [];
+      for (const c of comments) {
+        if (seen.has(c.username)) {
+          removed.push(c);
+        } else {
+          seen.set(c.username, c);
+        }
+      }
+      setMainParticipants(Array.from(seen.values()));
+      setExcludedParticipants(removed);
+    } else {
+      setMainParticipants([]);
+      setExcludedParticipants([]);
+    }
+  }, [uniqueMode, comments]);
+
+  const pool = useMemo(() => {
+    if (!uniqueMode) return comments;
+    return mainParticipants;
+  }, [comments, mainParticipants, uniqueMode]);
+
   const handleSearch = (query: string, type: string, orden: boolean, maxWinners: number) => {
     setSearchTerm(query);
     
@@ -116,22 +153,21 @@ const SorteoPage = () => {
 
     let found: CommentBlock[] = [];
     if (type === 'aleatorio') {
-      // Selección aleatoria sin repetir
-      const shuffled = [...comments].sort(() => 0.5 - Math.random());
+      const shuffled = [...pool].sort(() => 0.5 - Math.random());
       found = shuffled.slice(0, maxWinners);
     } else if (type === 'numero') {
       if (orden) {
-        found = comments.filter(c => c.comment.replace(/\s/g, '').includes(query));
+        found = pool.filter(c => c.comment.replace(/\s/g, '').includes(query));
       } else {
         const perms = getPermutations(query);
-        found = comments.filter(c =>
+        found = pool.filter(c =>
           perms.some(perm => c.comment.replace(/\s/g, '').includes(perm))
         );
       }
     } else if (type === 'palabra') {
-      found = comments.filter(c => c.comment.toLowerCase().includes(query.toLowerCase()));
+      found = pool.filter(c => c.comment.toLowerCase().includes(query.toLowerCase()));
     } else if (type === 'marcador') {
-      found = comments.filter(c => c.comment.includes(query));
+      found = pool.filter(c => c.comment.includes(query));
     }
 
     if (found.length > 0) {
@@ -160,8 +196,22 @@ const SorteoPage = () => {
     // Filter type change handled by the filter components
   };
 
-  const totalComentarios = comments.length;
-  const usuariosUnicos = new Set(comments.map(c => c.username)).size;
+  const totalComentarios = pool.length;
+  const usuariosUnicos = new Set(pool.map(c => c.username)).size;
+
+  const excludeParticipant = (username: string) => {
+    const user = mainParticipants.find(c => c.username === username);
+    if (!user) return;
+    setMainParticipants(prev => prev.filter(c => c.username !== username));
+    setExcludedParticipants(prev => [...prev, user]);
+  };
+
+  const reinstateParticipant = (index: number) => {
+    const user = excludedParticipants[index];
+    if (!user) return;
+    setExcludedParticipants(prev => prev.filter((_, i) => i !== index));
+    setMainParticipants(prev => [...prev, user]);
+  };
 
   return (
   <div className="w-full min-h-screen bg-gradient-to-br from-blue-900 via-gray-900 to-yellow-100 py-4 sm:py-6 px-2 overflow-x-hidden">
@@ -262,15 +312,82 @@ const SorteoPage = () => {
 
       {/* TABLA */}
       <div className="bg-gray-900/90 rounded-2xl border-2 border-blue-400 shadow-xl p-4 sm:p-6 flex flex-col h-[70vh] sm:h-[80vh]">
-          <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 text-center">
-            Comentarios ({formatNumber(totalComentarios)})
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-white">
+              Comentarios ({formatNumber(totalComentarios)})
+            </h2>
+            <button
+              onClick={() => setUniqueMode(!uniqueMode)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-bold border-2 transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
+                uniqueMode
+                  ? 'bg-green-500 text-white border-green-400 shadow-lg shadow-green-500/30'
+                  : 'bg-gray-800 text-gray-300 border-gray-600 hover:border-green-400 hover:text-white'
+              }`}
+            >
+              <FaUsers className="text-sm" /> {uniqueMode ? 'Modo único' : 'Agrupar'}
+            </button>
+          </div>
 
           {/* CONTENEDOR SCROLL REAL */}
           <div className="flex-1 overflow-y-auto">
             <div className="overflow-x-auto sm:overflow-x-visible">
-              <CommentsTable comments={comments} />
+              <CommentsTable
+                comments={pool}
+                renderActions={uniqueMode ? (c) => (
+                  <button
+                    onClick={() => {
+                      setModalData({
+                        title: 'Excluir participante',
+                        message: `¿Excluir a "${c.username}" del sorteo?`,
+                        confirmLabel: 'Sí, excluir',
+                        confirmClass: 'bg-red-500 hover:bg-red-600',
+                        onConfirm: () => {
+                          excludeParticipant(c.username);
+                          setModalVisible(false);
+                        },
+                      });
+                      setModalVisible(true);
+                    }}
+                    className="w-8 h-8 rounded-lg text-sm font-bold border-2 transition-all duration-200 flex items-center justify-center bg-gray-100 text-gray-400 border-gray-300 hover:border-red-400 hover:text-red-500"
+                    title="Excluir"
+                  >
+                    ○
+                  </button>
+                ) : undefined}
+              />
             </div>
+
+            {uniqueMode && excludedParticipants.length > 0 && (
+              <div className="mt-6 pt-4 border-t-2 border-red-500/50">
+                <h3 className="text-lg font-bold text-red-400 mb-3 flex items-center gap-2">
+                  <FaTrashAlt className="text-sm" /> Usuarios excluidos y/o duplicados ({excludedParticipants.length})
+                </h3>
+                <CommentsTable
+                  comments={excludedParticipants}
+                  renderActions={(c, idx) => (
+                    <button
+                      onClick={() => {
+                        setModalData({
+                          title: 'Reincorporar participante',
+                          message: `¿Reincorporar a "${c.username}" al sorteo?`,
+                          confirmLabel: 'Sí, reincorporar',
+                          confirmClass: 'bg-green-500 hover:bg-green-600',
+                          onConfirm: () => {
+                            reinstateParticipant(idx);
+                            setModalVisible(false);
+                          },
+                        });
+                        setModalVisible(true);
+                      }}
+                      className="w-8 h-8 rounded-lg text-sm font-bold border-2 transition-all duration-200 flex items-center justify-center bg-gray-100 text-gray-400 border-gray-300 hover:border-green-400 hover:text-green-500"
+                      title="Reincorporar"
+                    >
+                      ○
+                    </button>
+                  )}
+                />
+              </div>
+            )}
           </div>
         </div>
     </div>
@@ -279,6 +396,16 @@ const SorteoPage = () => {
     <footer className="text-gray-400 text-xs sm:text-sm text-center pb-4">
       &copy; {new Date().getFullYear()} Sorteos Facilísimo
     </footer>
+
+    <ConfirmModal
+      visible={modalVisible}
+      title={modalData.title}
+      message={modalData.message}
+      confirmLabel={modalData.confirmLabel}
+      confirmClass={modalData.confirmClass}
+      onConfirm={modalData.onConfirm}
+      onCancel={() => setModalVisible(false)}
+    />
   </div>
 );
 }
