@@ -22,7 +22,7 @@ const CommentsTable: React.FC<CommentsTableProps> = ({ comments, renderActions }
       <tbody className="divide-y divide-blue-100">
         {comments.map((c, idx) => (
           <tr
-            key={idx}
+            key={c.username + '||' + c.comment}
             className={
               `transition-colors duration-200 ${idx % 2 === 0 ? 'bg-blue-50' : 'bg-white'} hover:bg-yellow-100/70` +
               ' text-gray-800 text-base'

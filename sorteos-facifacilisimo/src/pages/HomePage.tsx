@@ -143,7 +143,6 @@ const handleFacebookFile = (fileContent: string | File) => {
       localStorage.setItem('comentarios', facebookFile || '');
       localStorage.setItem('plataforma', 'facebook');
     } else if (platform === 'ambos') {
-      // Guardar ambos archivos y plataforma especial
       localStorage.setItem('comentarios_instagram', instagramFile || '');
       localStorage.setItem('comentarios_facebook', facebookFile || '');
       localStorage.setItem('plataforma', 'ambos');

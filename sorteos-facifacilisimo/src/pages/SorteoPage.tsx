@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import CommentsTable from '../components/CommentsTable';
 import Filters from '../components/Filters';
 import FiltersFacebook from '../components/FiltersFacebook';
-import WinnerDialog from '../components/WinnerDialog';
 import Countdown from '../components/Countdown';
 import ConfirmModal from '../components/ConfirmModal';
 import { parseComments, parseCommentsFacebook, type CommentBlock } from '../utils/commentParser';
@@ -31,7 +30,6 @@ const formatNumber = (num: number): string => {
 const SorteoPage = () => {
   const [comments, setComments] = useState<CommentBlock[]>([]);
   const [winners, setWinners] = useState<CommentBlock[]>([]);
-  const [dialogVisible, setDialogVisible] = useState(false);
   const [showCountdown, setShowCountdown] = useState(false);
   const [sorteoTitulo, setSorteoTitulo] = useState('');
   const toast = useRef<any>(null);
@@ -42,6 +40,12 @@ const SorteoPage = () => {
   const [uniqueMode, setUniqueMode] = useState(false);
   const [mainParticipants, setMainParticipants] = useState<CommentBlock[]>([]);
   const [excludedParticipants, setExcludedParticipants] = useState<CommentBlock[]>([]);
+  const [selectedMain, setSelectedMain] = useState<Set<string>>(new Set());
+  const [selectedExcluded, setSelectedExcluded] = useState<Set<number>>(new Set());
+  const selectedMainRef = useRef<Set<string>>(new Set());
+  const selectedExcludedRef = useRef<Set<number>>(new Set());
+  selectedMainRef.current = selectedMain;
+  selectedExcludedRef.current = selectedExcluded;
   const [modalVisible, setModalVisible] = useState(false);
   const [modalData, setModalData] = useState({
     title: '',
@@ -137,6 +141,8 @@ const SorteoPage = () => {
       setMainParticipants([]);
       setExcludedParticipants([]);
     }
+    setSelectedMain(new Set());
+    setSelectedExcluded(new Set());
   }, [uniqueMode, comments]);
 
   const pool = useMemo(() => {
@@ -193,25 +199,31 @@ const SorteoPage = () => {
     toast.current?.show({ severity: 'success', summary: '¡Ganadores encontrados!', detail: `Se encontraron ${winners.length} comentarios que coinciden.`, life: 2500 });
   };
 
-  const handleFilterTypeChange = () => {
-    // Filter type change handled by the filter components
-  };
-
   const totalComentarios = pool.length;
   const usuariosUnicos = new Set(pool.map(c => c.username)).size;
 
-  const excludeParticipant = (username: string) => {
-    const user = mainParticipants.find(c => c.username === username);
-    if (!user) return;
-    setMainParticipants(prev => prev.filter(c => c.username !== username));
-    setExcludedParticipants(prev => [...prev, user]);
+  const batchExclude = () => {
+    const usernames = selectedMainRef.current;
+    if (usernames.size === 0) return;
+    const toExclude = mainParticipants.filter(c => usernames.has(c.username + '||' + c.comment));
+    setMainParticipants(prev => prev.filter(c => !usernames.has(c.username + '||' + c.comment)));
+    setExcludedParticipants(prev => {
+      const keys = new Set(prev.map(c => c.username + '||' + c.comment));
+      return [...prev, ...toExclude.filter(c => !keys.has(c.username + '||' + c.comment))];
+    });
+    setSelectedMain(new Set());
   };
 
-  const reinstateParticipant = (index: number) => {
-    const user = excludedParticipants[index];
-    if (!user) return;
-    setExcludedParticipants(prev => prev.filter((_, i) => i !== index));
-    setMainParticipants(prev => [...prev, user]);
+  const batchReinstate = () => {
+    const idxs = selectedExcludedRef.current;
+    if (idxs.size === 0) return;
+    const toReinstate = excludedParticipants.filter((_, i) => idxs.has(i));
+    setExcludedParticipants(prev => prev.filter((_, i) => !idxs.has(i)));
+    setMainParticipants(prev => {
+      const keys = new Set(prev.map(c => c.username + '||' + c.comment));
+      return [...prev, ...toReinstate.filter(c => !keys.has(c.username + '||' + c.comment))];
+    });
+    setSelectedExcluded(new Set());
   };
 
   return (
@@ -304,9 +316,9 @@ const SorteoPage = () => {
         {/* Filtros */}
         <div className="bg-gray-800/50 rounded-xl p-3 sm:p-4">
           {platform === 'facebook' ? (
-            <FiltersFacebook onSearch={handleSearch} onFilterTypeChange={handleFilterTypeChange} />
+            <FiltersFacebook onSearch={handleSearch} />
           ) : (
-            <Filters onSearch={handleSearch} onFilterTypeChange={handleFilterTypeChange} />
+            <Filters onSearch={handleSearch} />
           )}
         </div>
       </div>
@@ -331,29 +343,51 @@ const SorteoPage = () => {
 
           {/* CONTENEDOR SCROLL REAL */}
           <div className="flex-1 overflow-y-auto">
+            {uniqueMode && selectedMain.size > 0 && (
+              <div className="sticky top-0 z-10 mb-2">
+                <button
+                  onClick={() => {
+                    const count = selectedMain.size;
+                    const name = count === 1 ? [...selectedMain][0].split('||')[0] : '';
+                    setModalData({
+                      title: count === 1 ? 'Excluir participante' : 'Excluir participantes',
+                      message: count === 1
+                        ? `¿Excluir al participante "${name}" del sorteo?`
+                        : `¿Excluir a ${count} participantes del sorteo?`,
+                      confirmLabel: 'Sí, excluir',
+                      confirmClass: 'bg-red-500 hover:bg-red-600',
+                      onConfirm: () => {
+                        batchExclude();
+                        setModalVisible(false);
+                      },
+                    });
+                    setModalVisible(true);
+                  }}
+                  className="w-full px-4 py-2 rounded-lg font-bold text-white bg-red-500 hover:bg-red-600 transition flex items-center justify-center gap-2 shadow-lg"
+                >
+                  {selectedMain.size !== 1 ? 'Excluir seleccionados' : 'Excluir seleccionado'}
+                </button>
+              </div>
+            )}
             <div className="overflow-x-auto sm:overflow-x-visible">
               <CommentsTable
                 comments={pool}
                 renderActions={uniqueMode ? (c) => (
-                  <button
-                    onClick={() => {
-                      setModalData({
-                        title: 'Excluir participante',
-                        message: `¿Excluir a "${c.username}" del sorteo?`,
-                        confirmLabel: 'Sí, excluir',
-                        confirmClass: 'bg-red-500 hover:bg-red-600',
-                        onConfirm: () => {
-                          excludeParticipant(c.username);
-                          setModalVisible(false);
-                        },
+                  <input
+                    type="checkbox"
+                    checked={selectedMain.has(c.username + '||' + c.comment)}
+                    onChange={() => {
+                      const key = c.username + '||' + c.comment;
+                      setSelectedMain(prev => {
+                        const next = new Set(prev);
+                        if (next.has(key)) next.delete(key);
+                        else next.add(key);
+                        return next;
                       });
-                      setModalVisible(true);
                     }}
-                    className="w-8 h-8 rounded-lg text-sm font-bold border-2 transition-all duration-200 flex items-center justify-center bg-gray-100 text-gray-400 border-gray-300 hover:border-red-400 hover:text-red-500"
-                    title="Excluir"
-                  >
-                    ○
-                  </button>
+                    className="w-5 h-5 cursor-pointer accent-red-500"
+                    title="Seleccionar para excluir"
+                  />
                 ) : undefined}
               />
             </div>
@@ -363,28 +397,50 @@ const SorteoPage = () => {
                 <h3 className="text-lg font-bold text-red-400 mb-3 flex items-center gap-2">
                   <FaTrashAlt className="text-sm" /> Usuarios excluidos y/o duplicados ({excludedParticipants.length})
                 </h3>
-                <CommentsTable
-                  comments={excludedParticipants}
-                  renderActions={(c, idx) => (
+                {selectedExcluded.size > 0 && (
+                  <div className="mb-2">
                     <button
                       onClick={() => {
+                        const count = selectedExcluded.size;
+                        const firstIdx = [...selectedExcluded][0];
+                        const name = count === 1 ? excludedParticipants[firstIdx]?.username : '';
                         setModalData({
-                          title: 'Reincorporar participante',
-                          message: `¿Reincorporar a "${c.username}" al sorteo?`,
+                          title: count === 1 ? 'Reincorporar participante' : 'Reincorporar participantes',
+                          message: count === 1
+                            ? `¿Reincorporar al participante "${name}" al sorteo?`
+                            : `¿Reincorporar a ${count} participantes al sorteo?`,
                           confirmLabel: 'Sí, reincorporar',
                           confirmClass: 'bg-green-500 hover:bg-green-600',
                           onConfirm: () => {
-                            reinstateParticipant(idx);
+                            batchReinstate();
                             setModalVisible(false);
                           },
                         });
                         setModalVisible(true);
                       }}
-                      className="w-8 h-8 rounded-lg text-sm font-bold border-2 transition-all duration-200 flex items-center justify-center bg-gray-100 text-gray-400 border-gray-300 hover:border-green-400 hover:text-green-500"
-                      title="Reincorporar"
+                      className="w-full px-4 py-2 rounded-lg font-bold text-white bg-green-500 hover:bg-green-600 transition flex items-center justify-center gap-2 shadow-lg"
                     >
-                      ○
+                      {selectedExcluded.size !== 1 ? 'Reincorporar seleccionados' : 'Reincorporar seleccionado'}
                     </button>
+                  </div>
+                )}
+                <CommentsTable
+                  comments={excludedParticipants}
+                  renderActions={(c, idx) => (
+                    <input
+                      type="checkbox"
+                      checked={selectedExcluded.has(idx)}
+                      onChange={() => {
+                        setSelectedExcluded(prev => {
+                          const next = new Set(prev);
+                          if (next.has(idx)) next.delete(idx);
+                          else next.add(idx);
+                          return next;
+                        });
+                      }}
+                      className="w-5 h-5 cursor-pointer accent-green-500"
+                      title="Seleccionar para reincorporar"
+                    />
                   )}
                 />
               </div>
