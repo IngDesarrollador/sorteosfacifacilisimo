@@ -124,10 +124,11 @@ const SorteoPage = () => {
       const seen = new Map<string, CommentBlock>();
       const removed: CommentBlock[] = [];
       for (const c of comments) {
-        if (seen.has(c.username)) {
+        const key = c.username + '||' + c.comment;
+        if (seen.has(key)) {
           removed.push(c);
         } else {
-          seen.set(c.username, c);
+          seen.set(key, c);
         }
       }
       setMainParticipants(Array.from(seen.values()));
