@@ -74,6 +74,7 @@ const SorteoPage = () => {
   const [platform, setPlatform] = useState<'instagram' | 'facebook' | 'ambos' | 'nombres'>('instagram');
   const [activeFilter, setActiveFilter] = useState<'instagram' | 'facebook' | 'ambos' | 'nombres'>('ambos');
   const [uniqueMode, setUniqueMode] = useState(false);
+  const [activeTab, setActiveTab] = useState<'participantes' | 'excluidos'>('participantes');
   const [mainParticipants, setMainParticipants] = useState<CommentBlock[]>([]);
   const [excludedParticipants, setExcludedParticipants] = useState<CommentBlock[]>([]);
   const [selectedMain, setSelectedMain] = useState<Set<string>>(new Set());
@@ -203,6 +204,7 @@ const SorteoPage = () => {
     } else {
       setMainParticipants([]);
       setExcludedParticipants([]);
+      setActiveTab('participantes');
     }
     setSelectedMain(new Set());
     setSelectedExcluded(new Set());
@@ -387,129 +389,184 @@ const SorteoPage = () => {
 
       {/* TABLA */}
       <div className="bg-gray-900/90 rounded-2xl border-2 border-blue-400 shadow-xl p-4 sm:p-6 flex flex-col h-[70vh] sm:h-[80vh]">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl sm:text-2xl font-bold text-white">
-              Comentarios ({formatNumber(totalComentarios)})
-            </h2>
+
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xl sm:text-2xl font-bold text-white">
+            Comentarios ({formatNumber(totalComentarios)})
+          </h2>
+          <button
+            type="button"
+            onClick={() => setUniqueMode(!uniqueMode)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-bold border-2 transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
+              uniqueMode
+                ? 'bg-green-500 text-white border-green-400 shadow-lg shadow-green-500/30'
+                : 'bg-gray-800 text-gray-300 border-gray-600 hover:border-green-400 hover:text-white'
+            }`}
+          >
+            <FaUsers className="text-sm" /> {uniqueMode ? 'Modo único' : 'Agrupar'}
+          </button>
+        </div>
+
+        {/* Pestañas — solo visibles en modo único */}
+        {uniqueMode && (
+          <div className="flex gap-1 mb-3 border-b border-gray-700 shrink-0">
             <button
               type="button"
-              onClick={() => setUniqueMode(!uniqueMode)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-bold border-2 transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
-                uniqueMode
-                  ? 'bg-green-500 text-white border-green-400 shadow-lg shadow-green-500/30'
-                  : 'bg-gray-800 text-gray-300 border-gray-600 hover:border-green-400 hover:text-white'
+              onClick={() => setActiveTab('participantes')}
+              className={`flex-1 sm:flex-none px-3 sm:px-5 py-2 text-sm font-bold rounded-t-lg border-b-2 transition-all duration-150 ${
+                activeTab === 'participantes'
+                  ? 'bg-blue-600/30 text-white border-blue-400'
+                  : 'text-gray-400 border-transparent hover:text-white hover:border-gray-500'
               }`}
             >
-              <FaUsers className="text-sm" /> {uniqueMode ? 'Modo único' : 'Agrupar'}
+              Participantes
+              <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-xs bg-blue-500/40 text-blue-200">
+                {formatNumber(mainParticipants.length)}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('excluidos')}
+              className={`flex-1 sm:flex-none px-3 sm:px-5 py-2 text-sm font-bold rounded-t-lg border-b-2 transition-all duration-150 flex items-center justify-center gap-1.5 ${
+                activeTab === 'excluidos'
+                  ? 'bg-red-600/20 text-red-300 border-red-400'
+                  : 'text-gray-400 border-transparent hover:text-red-300 hover:border-red-500/50'
+              }`}
+            >
+              <FaTrashAlt className="text-xs" />
+              Excluidos
+              {excludedParticipants.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-xs bg-red-500/40 text-red-200 font-bold">
+                  {formatNumber(excludedParticipants.length)}
+                </span>
+              )}
             </button>
           </div>
+        )}
 
-          {/* CONTENEDOR SCROLL REAL */}
-          <div className="flex-1 overflow-y-auto">
-            {uniqueMode && selectedMain.size > 0 && (
-              <div className="sticky top-0 z-10 mb-2">
-                <button
-                  onClick={() => {
-                    const count = selectedMain.size;
-                    const name = count === 1 ? [...selectedMain][0].split('||')[0] : '';
-                    setModalData({
-                      title: count === 1 ? 'Excluir participante' : 'Excluir participantes',
-                      message: count === 1
-                        ? `¿Excluir al participante "${name}" del sorteo?`
-                        : `¿Excluir a ${count} participantes del sorteo?`,
-                      confirmLabel: 'Sí, excluir',
-                      confirmClass: 'bg-red-500 hover:bg-red-600',
-                      onConfirm: () => {
-                        batchExclude();
-                        setModalVisible(false);
-                      },
-                    });
-                    setModalVisible(true);
-                  }}
-                  className="w-full px-4 py-2 rounded-lg font-bold text-white bg-red-500 hover:bg-red-600 transition flex items-center justify-center gap-2 shadow-lg"
-                >
-                  {selectedMain.size !== 1 ? 'Excluir seleccionados' : 'Excluir seleccionado'}
-                </button>
-              </div>
-            )}
-            <div className="overflow-x-auto sm:overflow-x-visible">
-              <CommentsTable
-                comments={pool}
-                renderActions={uniqueMode ? (c) => (
-                  <input
-                    type="checkbox"
-                    checked={selectedMain.has(c.username + '||' + c.comment)}
-                    onChange={() => {
-                      const key = c.username + '||' + c.comment;
-                      setSelectedMain(prev => {
-                        const next = new Set(prev);
-                        if (next.has(key)) next.delete(key);
-                        else next.add(key);
-                        return next;
+        {/* CONTENEDOR SCROLL */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+
+          {/* Pestaña Participantes (o vista normal sin modo único) */}
+          {(!uniqueMode || activeTab === 'participantes') && (
+            <>
+              {uniqueMode && selectedMain.size > 0 && (
+                <div className="sticky top-0 z-10 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const count = selectedMain.size;
+                      const name = count === 1 ? [...selectedMain][0].split('||')[0] : '';
+                      setModalData({
+                        title: count === 1 ? 'Excluir participante' : 'Excluir participantes',
+                        message: count === 1
+                          ? `¿Excluir al participante "${name}" del sorteo?`
+                          : `¿Excluir a ${count} participantes del sorteo?`,
+                        confirmLabel: 'Sí, excluir',
+                        confirmClass: 'bg-red-500 hover:bg-red-600',
+                        onConfirm: () => {
+                          batchExclude();
+                          setModalVisible(false);
+                        },
                       });
+                      setModalVisible(true);
                     }}
-                    className="w-5 h-5 cursor-pointer accent-red-500"
-                    title="Seleccionar para excluir"
-                  />
-                ) : undefined}
-              />
-            </div>
-
-            {uniqueMode && excludedParticipants.length > 0 && (
-              <div className="mt-6 pt-4 border-t-2 border-red-500/50">
-                <h3 className="text-lg font-bold text-red-400 mb-3 flex items-center gap-2">
-                  <FaTrashAlt className="text-sm" /> Usuarios excluidos y/o duplicados ({excludedParticipants.length})
-                </h3>
-                {selectedExcluded.size > 0 && (
-                  <div className="mb-2">
-                    <button
-                      onClick={() => {
-                        const count = selectedExcluded.size;
-                        const firstIdx = [...selectedExcluded][0];
-                        const name = count === 1 ? excludedParticipants[firstIdx]?.username : '';
-                        setModalData({
-                          title: count === 1 ? 'Reincorporar participante' : 'Reincorporar participantes',
-                          message: count === 1
-                            ? `¿Reincorporar al participante "${name}" al sorteo?`
-                            : `¿Reincorporar a ${count} participantes al sorteo?`,
-                          confirmLabel: 'Sí, reincorporar',
-                          confirmClass: 'bg-green-500 hover:bg-green-600',
-                          onConfirm: () => {
-                            batchReinstate();
-                            setModalVisible(false);
-                          },
-                        });
-                        setModalVisible(true);
-                      }}
-                      className="w-full px-4 py-2 rounded-lg font-bold text-white bg-green-500 hover:bg-green-600 transition flex items-center justify-center gap-2 shadow-lg"
-                    >
-                      {selectedExcluded.size !== 1 ? 'Reincorporar seleccionados' : 'Reincorporar seleccionado'}
-                    </button>
-                  </div>
-                )}
+                    className="w-full px-4 py-2 rounded-lg font-bold text-white bg-red-500 hover:bg-red-600 transition flex items-center justify-center gap-2 shadow-lg"
+                  >
+                    {selectedMain.size !== 1 ? 'Excluir seleccionados' : 'Excluir seleccionado'}
+                  </button>
+                </div>
+              )}
+              <div className="overflow-x-auto sm:overflow-x-visible">
                 <CommentsTable
-                  comments={excludedParticipants}
-                  renderActions={(c, idx) => (
+                  comments={pool}
+                  renderActions={uniqueMode ? (c) => (
                     <input
                       type="checkbox"
-                      checked={selectedExcluded.has(idx)}
+                      checked={selectedMain.has(c.username + '||' + c.comment)}
                       onChange={() => {
-                        setSelectedExcluded(prev => {
+                        const key = c.username + '||' + c.comment;
+                        setSelectedMain(prev => {
                           const next = new Set(prev);
-                          if (next.has(idx)) next.delete(idx);
-                          else next.add(idx);
+                          if (next.has(key)) next.delete(key);
+                          else next.add(key);
                           return next;
                         });
                       }}
-                      className="w-5 h-5 cursor-pointer accent-green-500"
-                      title="Seleccionar para reincorporar"
+                      className="w-5 h-5 cursor-pointer accent-red-500"
+                      title="Seleccionar para excluir"
                     />
-                  )}
+                  ) : undefined}
                 />
               </div>
-            )}
-          </div>
+            </>
+          )}
+
+          {/* Pestaña Excluidos */}
+          {uniqueMode && activeTab === 'excluidos' && (
+            <>
+              {excludedParticipants.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-40 text-gray-500 gap-2">
+                  <FaTrashAlt className="text-3xl opacity-30" />
+                  <p className="text-sm">No hay comentarios excluidos</p>
+                </div>
+              ) : (
+                <>
+                  {selectedExcluded.size > 0 && (
+                    <div className="sticky top-0 z-10 mb-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const count = selectedExcluded.size;
+                          const firstIdx = [...selectedExcluded][0];
+                          const name = count === 1 ? excludedParticipants[firstIdx]?.username : '';
+                          setModalData({
+                            title: count === 1 ? 'Reincorporar participante' : 'Reincorporar participantes',
+                            message: count === 1
+                              ? `¿Reincorporar al participante "${name}" al sorteo?`
+                              : `¿Reincorporar a ${count} participantes al sorteo?`,
+                            confirmLabel: 'Sí, reincorporar',
+                            confirmClass: 'bg-green-500 hover:bg-green-600',
+                            onConfirm: () => {
+                              batchReinstate();
+                              setModalVisible(false);
+                            },
+                          });
+                          setModalVisible(true);
+                        }}
+                        className="w-full px-4 py-2 rounded-lg font-bold text-white bg-green-500 hover:bg-green-600 transition flex items-center justify-center gap-2 shadow-lg"
+                      >
+                        {selectedExcluded.size !== 1 ? 'Reincorporar seleccionados' : 'Reincorporar seleccionado'}
+                      </button>
+                    </div>
+                  )}
+                  <CommentsTable
+                    comments={excludedParticipants}
+                    renderActions={(c, idx) => (
+                      <input
+                        type="checkbox"
+                        checked={selectedExcluded.has(idx)}
+                        onChange={() => {
+                          setSelectedExcluded(prev => {
+                            const next = new Set(prev);
+                            if (next.has(idx)) next.delete(idx);
+                            else next.add(idx);
+                            return next;
+                          });
+                        }}
+                        className="w-5 h-5 cursor-pointer accent-green-500"
+                        title="Seleccionar para reincorporar"
+                      />
+                    )}
+                  />
+                </>
+              )}
+            </>
+          )}
+
         </div>
+      </div>
     </div>
 
     {/* Footer */}
