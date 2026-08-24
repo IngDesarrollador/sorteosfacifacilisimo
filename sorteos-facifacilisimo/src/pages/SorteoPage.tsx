@@ -298,31 +298,13 @@ const SorteoPage = () => {
 
     {/* Header */}
     <div className="max-w-7xl mx-auto mb-6 sm:mb-8">
-      <div className="text-center mb-4 sm:mb-6">
+      <div className="text-center">
         <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">
           Sorteos Facilísimo
         </h1>
         <p className="text-gray-300 text-base sm:text-lg">
           Encuentra ganadores de forma rápida y transparente
         </p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-        {[ 
-          { label: 'Comentarios', value: formatNumber(totalComentarios), color: 'blue' },
-          { label: 'Usuarios', value: formatNumber(usuariosUnicos), color: 'green' },
-          { label: 'Ganadores', value: formatNumber(winners.length), color: 'yellow' },
-          { label: 'Buscado', value: searchTerm || '-', color: 'purple' },
-        ].map((stat, i) => (
-          <div
-            key={i}
-            className={`bg-${stat.color}-600/80 text-white text-center rounded-xl p-3 sm:p-4 border-2`}
-          >
-            <div className="text-xl sm:text-2xl font-bold">{stat.value}</div>
-            <div className="text-xs sm:text-sm">{stat.label}</div>
-          </div>
-        ))}
       </div>
     </div>
 
@@ -567,6 +549,24 @@ const SorteoPage = () => {
 
         </div>
       </div>
+    </div>
+
+    {/* Stats */}
+    <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+      {[
+        { label: 'Comentarios', value: formatNumber(totalComentarios), color: 'blue' },
+        { label: 'Usuarios', value: formatNumber(usuariosUnicos), color: 'green' },
+        { label: 'Ganadores', value: formatNumber(winners.length), color: 'yellow' },
+        { label: 'Buscado', value: searchTerm || '-', color: 'purple' },
+      ].map((stat, i) => (
+        <div
+          key={i}
+          className={`bg-${stat.color}-600/80 text-white text-center rounded-xl p-3 sm:p-4 border-2`}
+        >
+          <div className="text-xl sm:text-2xl font-bold">{stat.value}</div>
+          <div className="text-xs sm:text-sm">{stat.label}</div>
+        </div>
+      ))}
     </div>
 
     {/* Footer */}
