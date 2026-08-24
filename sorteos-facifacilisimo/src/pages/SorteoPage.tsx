@@ -9,6 +9,42 @@ import { Toast } from 'primereact/toast';
 import { useNavigate } from 'react-router-dom';
 import { FaUsers, FaTrashAlt } from 'react-icons/fa';
 
+const SIMILARITY_THRESHOLD = 0.85;
+
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const dp: number[] = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const temp = dp[j];
+      dp[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[j], dp[j - 1]);
+      prev = temp;
+    }
+  }
+  return dp[b.length];
+}
+
+function normalizeForSimilarity(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/@/g, '')
+    .replace(/[^\S\n]+/g, ' ')
+    .trim();
+}
+
+function isSimilarComment(a: string, b: string): boolean {
+  const na = normalizeForSimilarity(a);
+  const nb = normalizeForSimilarity(b);
+  if (na === nb) return true;
+  const maxLen = Math.max(na.length, nb.length);
+  if (maxLen === 0) return true;
+  return (1 - levenshtein(na, nb) / maxLen) >= SIMILARITY_THRESHOLD;
+}
+
 function getPermutations(str: string): string[] {
   if (str.length <= 1) return [str];
   const perms: string[] = [];
@@ -125,18 +161,45 @@ const SorteoPage = () => {
 
   useEffect(() => {
     if (uniqueMode) {
-      const seen = new Map<string, CommentBlock>();
-      const removed: CommentBlock[] = [];
-      for (const c of comments) {
-        const key = c.username + '||' + c.comment;
-        if (seen.has(key)) {
-          removed.push(c);
-        } else {
-          seen.set(key, c);
-        }
+      if (comments.length === 0) {
+        toast.current?.show({ severity: 'warn', summary: 'Sin comentarios', detail: 'No hay comentarios cargados para agrupar.', life: 3000 });
+        setUniqueMode(false);
+        return;
       }
-      setMainParticipants(Array.from(seen.values()));
-      setExcludedParticipants(removed);
+
+      // Agrupar por username (normalizado) y dentro de cada grupo
+      // excluir comentarios muy similares usando distancia de Levenshtein
+      const byUsername = new Map<string, CommentBlock[]>();
+      for (const c of comments) {
+        const uKey = c.username.trim().toLowerCase();
+        if (!byUsername.has(uKey)) byUsername.set(uKey, []);
+        byUsername.get(uKey)!.push(c);
+      }
+
+      const mainArr: CommentBlock[] = [];
+      const removedArr: CommentBlock[] = [];
+
+      for (const group of byUsername.values()) {
+        const kept: CommentBlock[] = [];
+        for (const c of group) {
+          const isDup = kept.some(k => isSimilarComment(k.comment, c.comment));
+          if (isDup) {
+            removedArr.push(c);
+          } else {
+            kept.push(c);
+          }
+        }
+        mainArr.push(...kept);
+      }
+
+      setMainParticipants(mainArr);
+      setExcludedParticipants(removedArr);
+
+      if (removedArr.length > 0) {
+        toast.current?.show({ severity: 'info', summary: 'Modo único activado', detail: `Se encontraron ${removedArr.length} comentario(s) duplicado(s) y fueron excluidos.`, life: 3500 });
+      } else {
+        toast.current?.show({ severity: 'success', summary: 'Modo único activado', detail: 'No se encontraron comentarios duplicados.', life: 3000 });
+      }
     } else {
       setMainParticipants([]);
       setExcludedParticipants([]);
@@ -188,7 +251,6 @@ const SorteoPage = () => {
       setShowCountdown(true);
     } else {
       setWinners([]);
-      setDialogVisible(false); // No mostrar el modal si no hay ganadores
       toast.current?.show({ severity: 'warn', summary: 'Sin coincidencias', detail: 'No se encontró ningún comentario que coincida.', life: 2500 });
     }
   };
@@ -330,6 +392,7 @@ const SorteoPage = () => {
               Comentarios ({formatNumber(totalComentarios)})
             </h2>
             <button
+              type="button"
               onClick={() => setUniqueMode(!uniqueMode)}
               className={`px-3 py-1.5 rounded-lg text-sm font-bold border-2 transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
                 uniqueMode
