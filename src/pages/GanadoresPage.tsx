@@ -73,14 +73,50 @@ const GanadoresPage = () => {
         doc.addImage(iconBase64, 'PNG', x, y, imgWidth, imgHeight);
       }
       // --- Ahora el resto del contenido (header, tabla, footer) ---
-      doc.setFillColor(255, 221, 51); // Amarillo Facilísimo
-      doc.rect(0, 0, 210, 40, 'F');
-      if (logoBase64) {
-        doc.addImage(logoBase64, 'PNG', 5, 8, 60, 25);
+      const textStartX = 70;
+      const marginX = 10;
+      const maxTitleWidth = pageWidth - textStartX - marginX;
+
+      // Limpiar posibles emojis del título para evitar caracteres extraños o roturas en jsPDF
+      const cleanTitle = (sorteoTitulo || 'Ganadores del Sorteo')
+        .replace(
+          /([\u2700-\u27BF]|[\uE000-\uF8FF]|[\uD83C-\uDBFF\uDC00-\uDFFF]+|[\u2011-\u26FF]|\uD83D[\uDE00-\uDE4F])/g,
+          ''
+        )
+        .trim() || 'Ganadores del Sorteo';
+
+      // Ajustar tamaño de fuente dinámicamente para que quepa en el ancho disponible
+      let titleFontSize = 22;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(titleFontSize);
+
+      while (doc.getTextWidth(cleanTitle) > maxTitleWidth && titleFontSize > 14) {
+        titleFontSize -= 1;
+        doc.setFontSize(titleFontSize);
       }
-      doc.setFontSize(25);
+
+      // Si aún supera el ancho máximo o tiene varias palabras largas, dividir en líneas
+      const titleLines: string[] = doc.splitTextToSize(cleanTitle, maxTitleWidth);
+      const titleLineHeight = titleFontSize * 0.45;
+      const totalTitleHeight = titleLines.length * titleLineHeight;
+
+      // Altura dinámica del encabezado según las líneas del título
+      const headerHeight = Math.max(42, 14 + totalTitleHeight + 16);
+
+      doc.setFillColor(255, 221, 51); // Amarillo Facilísimo
+      doc.rect(0, 0, pageWidth, headerHeight, 'F');
+
+      if (logoBase64) {
+        const logoY = Math.max(8, (headerHeight - 25) / 2);
+        doc.addImage(logoBase64, 'PNG', 5, logoY, 60, 25);
+      }
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(titleFontSize);
       doc.setTextColor(33, 37, 41);
-      doc.text(sorteoTitulo, 70, 20);
+
+      const titleStartY = titleLines.length === 1 ? (headerHeight / 2) - 3 : 15;
+      doc.text(titleLines, textStartX, titleStartY);
       
       // Agregar fecha del día
       const fechaActual = new Date().toLocaleDateString('es-ES', {
@@ -94,12 +130,16 @@ const GanadoresPage = () => {
         minute: '2-digit',
         second: '2-digit'
       });
-      doc.setFontSize(12);
+
+      const fechaY = titleLines.length === 1 ? titleStartY + 14 : titleStartY + totalTitleHeight + 7;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
       doc.setTextColor(33, 37, 41);
-      doc.text(`Fecha: ${fechaActual} - ${horaActual}`, 70, 35);
+      doc.text(`Fecha: ${fechaActual} - ${horaActual}`, textStartX, Math.min(fechaY, headerHeight - 4));
+
       const hasCedula = ganadores.some(w => !!w.cedula && String(w.cedula).trim().length > 0);
       autoTable(doc, {
-        startY: 50,
+        startY: headerHeight + 8,
         head: hasCedula
           ? [['#', 'Usuario', 'Cédula', 'Comentario', 'Plataforma']]
           : [['#', 'Usuario', 'Comentario', 'Plataforma']],

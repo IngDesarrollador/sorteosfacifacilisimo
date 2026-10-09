@@ -43,18 +43,48 @@ const WinnerDialog: React.FC<WinnerDialogProps> = ({ visible, comments, onHide, 
     const hasCedula = winners.some(w => !!w.cedula && w.cedula.trim().length > 0);
 
     // Header con logo y nombre
-    doc.setFillColor(255, 221, 51); // Amarillo Facilísimo
-    doc.rect(0, 0, 210, 40, 'F');
-    if (logoBase64) {
-      doc.addImage(logoBase64, 'PNG', 10, 5, 50, 30);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const textStartX = 70;
+    const marginX = 10;
+    const maxTitleWidth = pageWidth - textStartX - marginX;
+
+    const cleanTitle = (sorteoTitulo || 'Ganadores del Sorteo')
+      .replace(
+        /([\u2700-\u27BF]|[\uE000-\uF8FF]|[\uD83C-\uDBFF\uDC00-\uDFFF]+|[\u2011-\u26FF]|\uD83D[\uDE00-\uDE4F])/g,
+        ''
+      )
+      .trim() || 'Ganadores del Sorteo';
+
+    let titleFontSize = 22;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(titleFontSize);
+
+    while (doc.getTextWidth(cleanTitle) > maxTitleWidth && titleFontSize > 14) {
+      titleFontSize -= 1;
+      doc.setFontSize(titleFontSize);
     }
-    doc.setFontSize(22);
+
+    const titleLines: string[] = doc.splitTextToSize(cleanTitle, maxTitleWidth);
+    const titleLineHeight = titleFontSize * 0.45;
+    const totalTitleHeight = titleLines.length * titleLineHeight;
+    const headerHeight = Math.max(42, 14 + totalTitleHeight + 14);
+
+    doc.setFillColor(255, 221, 51); // Amarillo Facilísimo
+    doc.rect(0, 0, pageWidth, headerHeight, 'F');
+    if (logoBase64) {
+      const logoY = Math.max(5, (headerHeight - 30) / 2);
+      doc.addImage(logoBase64, 'PNG', 10, logoY, 50, 30);
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(titleFontSize);
     doc.setTextColor(33, 37, 41);
-    doc.text(sorteoTitulo, 70, 25);
+
+    const titleStartY = titleLines.length === 1 ? headerHeight / 2 + 3 : 18;
+    doc.text(titleLines, textStartX, titleStartY);
 
     // Tabla de ganadores
     autoTable(doc, {
-      startY: 50,
+      startY: headerHeight + 8,
       head: hasCedula ? [['#', 'Usuario', 'Cédula', 'Comentario']] : [['#', 'Usuario', 'Comentario']],
       body: winners.map((w, i) =>
         hasCedula ? [i + 1, w.username, w.cedula || '-', w.comment] : [i + 1, w.username, w.comment]
