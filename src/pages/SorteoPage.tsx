@@ -7,9 +7,9 @@ import ConfirmModal from '../components/ConfirmModal';
 import { parseComments, parseCommentsFacebook, parseStoredContent, type CommentBlock } from '../utils/commentParser';
 import { parseParticipantData } from '../utils/participantParser';
 import { Toast } from 'primereact/toast';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { FaUsers, FaTrashAlt } from 'react-icons/fa';
-import { getStorageItem, setStorageItem } from '../utils/storage';
+import { getStorageItem } from '../utils/storage';
 
 const SIMILARITY_THRESHOLD = 0.85;
 
@@ -96,13 +96,14 @@ const SorteoPage = () => {
   const [commentsInstagram, setCommentsInstagram] = useState<CommentBlock[]>([]);
   const [commentsFacebook, setCommentsFacebook] = useState<CommentBlock[]>([]);
   const navigate = useNavigate();
+  const location = useLocation();
+  const initialImageUrl = (location.state as { imageUrl?: string | null } | null)?.imageUrl;
 
   useEffect(() => {
     const loadData = async () => {
-      const img = await getStorageItem('imagenPublicacion');
       const plat = (await getStorageItem('plataforma')) as 'instagram' | 'facebook' | 'ambos' | 'nombres';
-      if (img && img.trim() !== "") {
-        setImageUrl(img);
+      if (initialImageUrl && initialImageUrl.trim() !== '') {
+        setImageUrl(initialImageUrl);
       } else {
         setImageUrl(null);
       }
@@ -152,7 +153,7 @@ const SorteoPage = () => {
     };
 
     loadData();
-  }, []);
+  }, [initialImageUrl]);
 
   // Permite filtrar por solo IG, solo FB o ambos (opcional, puedes quitar el selector si no lo quieres)
   useEffect(() => {

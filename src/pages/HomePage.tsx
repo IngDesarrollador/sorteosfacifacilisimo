@@ -22,6 +22,7 @@ const HomePage = () => {
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    removeStorageItem('imagenPublicacion');
     return () => {
       if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
     };
@@ -35,9 +36,6 @@ const HomePage = () => {
       const data = await res.json();
       const img = data.data.image?.url || null;
       setImageUrl(img);
-      if (img) {
-        setStorageItem('imagenPublicacion', img);
-      }
     } catch (error) {
       setImageUrl(null);
     }
@@ -114,7 +112,7 @@ const HomePage = () => {
           if (ctx) {
             ctx.drawImage(tempImg, 0, 0, width, height);
             const compressed = canvas.toDataURL('image/jpeg', 0.7);
-            setStorageItem('imagenPublicacion', compressed);
+            setImageUrl(compressed);
           }
         } catch {
           /* canvas no disponible */
@@ -210,7 +208,7 @@ const HomePage = () => {
       await setStorageItem('lista_nombres', nombresFile || '');
       await setStorageItem('plataforma', 'nombres');
     }
-    navigate('/sorteo');
+    navigate('/sorteo', { state: { imageUrl: imageUrl?.startsWith('blob:') ? null : imageUrl } });
   };
 
   const onlyInstagram = !!instagramFile && !facebookFile && !nombresFile;
@@ -284,8 +282,8 @@ const HomePage = () => {
             </label>
           </div>
         </div>
-        {/* Imagen previsualizada con salvaguardas y keys estables */}
-        <div className="w-full flex justify-center mb-6 min-h-[120px]">
+        {/* Vista previa: recuadro vacío hasta que se cargue una imagen */}
+        <div className="w-full flex justify-center mb-6">
           {imageUrl ? (
             <div
               key="image-preview-loaded"
